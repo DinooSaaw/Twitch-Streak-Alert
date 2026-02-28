@@ -4,72 +4,250 @@
     <meta charset="utf-8" />
     <title>Twitch Streak Alerts — Settings</title>
     <style>
-      body { font-family: system-ui, Arial, sans-serif; padding: 16px; max-width: 680px; }
-      .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; }
-      .row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; gap: 16px; }
-      .muted { color: #666; font-size: 13px; }
-      button { padding: 8px 12px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-      button:hover { background: #f6f6f6; }
-      hr { border: none; border-top: 1px solid #eee; margin: 12px 0; }
-      .left { flex: 1; }
+      :root {
+        --bg: #0f0f14;
+        --card: #151521;
+        --text: #f2f2f5;
+        --muted: #a7a7b3;
+        --line: rgba(255, 255, 255, 0.08);
+        --accent: #a970ff;
+        --good: #3ddc97;
+        --bad: #ff6b6b;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: radial-gradient(1200px 700px at 10% -10%, rgba(169,112,255,0.25), transparent 55%),
+                    radial-gradient(900px 500px at 110% 10%, rgba(61,220,151,0.18), transparent 55%),
+                    var(--bg);
+        color: var(--text);
+      }
+
+      .page {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 22px 16px 40px 16px;
+      }
+
+      .top {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      h1 { margin: 0; font-size: 22px; letter-spacing: 0.2px; }
+      .subtitle { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      @media (min-width: 880px) {
+        .grid { grid-template-columns: 1fr 1fr; }
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: 0 14px 40px rgba(0,0,0,0.28);
+      }
+
+      .card h2 {
+        margin: 0 0 10px 0;
+        font-size: 13px;
+        letter-spacing: 0.2px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .setting {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 0;
+        border-top: 1px solid var(--line);
+      }
+      .setting:first-of-type { border-top: none; padding-top: 0; }
+
+      .setting .left {
+        min-width: 0;
+      }
+      .setting .name {
+        font-weight: 700;
+        font-size: 14px;
+        margin: 0;
+      }
+      .setting .desc {
+        margin: 3px 0 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      input[type="checkbox"] {
+        width: 44px;
+        height: 24px;
+        appearance: none;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        position: relative;
+        cursor: pointer;
+        outline: none;
+        transition: background 0.15s ease;
+      }
+      input[type="checkbox"]::after {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        top: 2px;
+        left: 3px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.9);
+        transition: transform 0.15s ease;
+      }
+      input[type="checkbox"]:checked {
+        background: rgba(169,112,255,0.35);
+        border-color: rgba(169,112,255,0.55);
+      }
+      input[type="checkbox"]:checked::after {
+        transform: translateX(19px);
+        background: white;
+      }
+
+      .btn {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        color: var(--text);
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .btn:hover { background: rgba(255,255,255,0.09); }
+      .btn.danger {
+        border-color: rgba(255,107,107,0.4);
+        background: rgba(255,107,107,0.12);
+      }
+      .btn.danger:hover { background: rgba(255,107,107,0.18); }
+
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+      }
+      th, td {
+        padding: 10px 10px;
+        font-size: 13px;
+        text-align: left;
+        border-top: 1px solid var(--line);
+      }
+      th {
+        border-top: none;
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+      }
+      td:last-child, th:last-child { text-align: right; }
+      .tiny { font-size: 12px; color: var(--muted); }
+
+      .footer-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
     </style>
   </head>
+
   <body>
-    <h1>Twitch Watch Streak Alerts</h1>
-    <p class="muted">Configure notifications and sound when your watch streak increases.</p>
-
-    <div class="card">
-      <div class="row">
-        <div class="left">
-          <div><b>Enable Extension</b></div>
-          <div class="muted">Master on/off switch.</div>
+    <div class="page">
+      <div class="top">
+        <div>
+          <h1>Twitch Watch Streak Alerts</h1>
+          <div class="subtitle">Alerts you when your watch streak increases. Stores streak values per channel locally.</div>
         </div>
-        <input id="enabled" type="checkbox" />
       </div>
 
-      <div class="row">
-        <div class="left">
-          <div><b>Desktop Notifications</b></div>
-          <div class="muted">Show a notification when streak increases.</div>
+      <div class="grid">
+        <div class="card">
+          <h2>Alerts</h2>
+
+          <div class="setting">
+            <div class="left">
+              <p class="name">Enable Extension</p>
+              <p class="desc">Master on/off switch for everything.</p>
+            </div>
+            <input id="enabled" type="checkbox" />
+          </div>
+
+          <div class="setting">
+            <div class="left">
+              <p class="name">Desktop Notifications</p>
+              <p class="desc">Show a notification when streak increases or is first detected.</p>
+            </div>
+            <input id="enableNotifications" type="checkbox" />
+          </div>
+
+          <div class="setting">
+            <div class="left">
+              <p class="name">Sound Alert</p>
+              <p class="desc">Plays a short beep when the streak increases (and first-detect alert too).</p>
+            </div>
+            <input id="enableSound" type="checkbox" />
+          </div>
+
+          <div class="setting">
+            <div class="left">
+              <p class="name">Alert on First Detection</p>
+              <p class="desc">Alerts once per channel when the streak value is detected for the first time.</p>
+            </div>
+            <input id="alertOnFirstDetection" type="checkbox" />
+          </div>
+
+          <div class="setting">
+            <div class="left">
+              <p class="name">Debug Toast</p>
+              <p class="desc">Shows a small toast on Twitch pages with detected streak value (useful for testing).</p>
+            </div>
+            <input id="debug" type="checkbox" />
+          </div>
+
+          <div class="status" id="status"></div>
+
+          <div class="footer-actions">
+            <button class="btn danger" id="reset">Reset Stored Data</button>
+          </div>
         </div>
-        <input id="enableNotifications" type="checkbox" />
-      </div>
 
-      <div class="row">
-        <div class="left">
-          <div><b>Sound Alert</b></div>
-          <div class="muted">Play a short beep when streak increases.</div>
+        <div class="card">
+          <h2>Tracked Channels</h2>
+          <div class="tiny" style="margin-bottom:10px;">
+            Sorted by last seen. Only channels you’ve visited + detected a streak for will appear here.
+          </div>
+
+          <div id="channelsWrap"></div>
         </div>
-        <input id="enableSound" type="checkbox" />
       </div>
-
-      <div class="row">
-        <div class="left">
-          <div><b>Alert on First Detection</b></div>
-          <div class="muted">Alert once when a channel's streak is detected for the first time (per channel).</div>
-        </div>
-        <input id="alertOnFirstDetection" type="checkbox" />
-      </div>
-
-      <div class="row">
-        <div class="left">
-          <div><b>Debug Toast</b></div>
-          <div class="muted">Shows a small toast on Twitch pages when a streak value is detected (for testing).</div>
-        </div>
-        <input id="debug" type="checkbox" />
-      </div>
-
-      <hr />
-
-      <div class="row">
-        <div class="left">
-          <div><b>Reset Stored Data</b></div>
-          <div class="muted">Clears saved streak values/history for all channels.</div>
-        </div>
-        <button id="reset">Reset</button>
-      </div>
-
-      <div id="status" class="muted"></div>
     </div>
 
     <script src="options.js"></script>

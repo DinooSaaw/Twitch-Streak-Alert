@@ -2,26 +2,198 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <title>Streak Alerts</title>
     <style>
-      body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 12px; width: 320px; }
-      .title { font-weight: 700; margin-bottom: 6px; }
-      .muted { color: #666; font-size: 12px; margin-bottom: 10px; }
-      .row { display: flex; justify-content: space-between; margin: 8px 0; }
-      .kv { font-size: 13px; }
-      button { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-      button:hover { background: #f6f6f6; }
+      :root {
+        --bg: #0f0f14;
+        --card: #151521;
+        --card2: #10101a;
+        --text: #f2f2f5;
+        --muted: #a7a7b3;
+        --line: rgba(255, 255, 255, 0.08);
+        --accent: #a970ff; /* twitch-ish purple */
+        --good: #3ddc97;
+        --warn: #ffd166;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        width: 360px;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: radial-gradient(1200px 600px at 10% -20%, rgba(169,112,255,0.25), transparent 55%),
+                    radial-gradient(900px 500px at 110% 10%, rgba(61,220,151,0.18), transparent 50%),
+                    var(--bg);
+        color: var(--text);
+      }
+
+      .wrap { padding: 14px; }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .title h1 {
+        font-size: 15px;
+        margin: 0;
+        letter-spacing: 0.2px;
+      }
+      .title .sub {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .pill {
+        font-size: 11px;
+        padding: 6px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.04);
+        color: var(--muted);
+      }
+      .pill.on { color: var(--good); border-color: rgba(61,220,151,0.35); }
+      .pill.off { color: #ff6b6b; border-color: rgba(255,107,107,0.35); }
+
+      .card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      }
+
+      .section-title {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0 0 8px 0;
+        letter-spacing: 0.2px;
+        text-transform: uppercase;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+      }
+      .row:first-of-type { border-top: none; padding-top: 0; }
+      .left {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .label {
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+      }
+
+      .list {
+        margin-top: 10px;
+      }
+      .list .item {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+      }
+      .list .item:first-child { border-top: none; }
+
+      .btn {
+        width: 100%;
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(169,112,255,0.45);
+        background: rgba(169,112,255,0.16);
+        color: var(--text);
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.06s ease, background 0.15s ease;
+      }
+      .btn:hover { background: rgba(169,112,255,0.22); }
+      .btn:active { transform: translateY(1px); }
+
+      .muted-note {
+        margin-top: 10px;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
+      .empty {
+        font-size: 12px;
+        color: var(--muted);
+        padding: 8px 0 0 0;
+      }
+
+      .divider { height: 10px; }
+
+      a.link {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a.link:hover { text-decoration: underline; }
     </style>
   </head>
   <body>
-    <div class="title">Streak Alerts</div>
-    <div class="muted">Alerts you when watch streak increases.</div>
+    <div class="wrap">
+      <div class="header">
+        <div class="title">
+          <h1>Watch Streak Alerts</h1>
+          <div class="sub">Track streaks + get alerts when they increase</div>
+        </div>
+        <div id="statusPill" class="pill">…</div>
+      </div>
 
-    <div class="row kv"><span>Extension</span><span id="enabledText">…</span></div>
-    <div class="row kv"><span>Notifications</span><span id="notifText">…</span></div>
-    <div class="row kv"><span>Sound</span><span id="soundText">…</span></div>
-    <div class="row kv"><span>First Detect Alert</span><span id="firstText">…</span></div>
+      <div class="card">
+        <p class="section-title">Current Channel</p>
 
-    <button id="openSettings">Open Settings</button>
+        <div class="row">
+          <div class="left">
+            <div class="label" id="currentChannel">Not on a channel</div>
+            <div class="meta" id="currentMeta">Open a Twitch channel page to show it here.</div>
+          </div>
+          <div class="value" id="currentStreak">—</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="section-title">Tracked Channels</p>
+        <div class="list" id="trackedList"></div>
+        <div class="empty" id="emptyState" style="display:none;">
+          No tracked channels yet. Open a channel and open the streak widget once.
+        </div>
+
+        <button class="btn" id="openSettings">Open Settings</button>
+
+        <div class="muted-note">
+          Tip: Turn on <b>Debug Toast</b> in Settings if the streak widget isn’t being detected.
+        </div>
+      </div>
+    </div>
 
     <script src="popup.js"></script>
   </body>
