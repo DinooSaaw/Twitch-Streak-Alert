@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 12px; width: 300px; }
+      .title { font-weight: 700; margin-bottom: 6px; }
+      .muted { color: #666; font-size: 12px; margin-bottom: 10px; }
+      .row { display: flex; justify-content: space-between; margin: 8px 0; }
+      .kv { font-size: 13px; }
+      button { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+      button:hover { background: #f6f6f6; }
+    </style>
+  </head>
+  <body>
+    <div class="title">Streak Alerts</div>
+    <div class="muted">Alerts you when watch streak increases.</div>
+
+    <div class="row kv"><span>Extension</span><span id="enabledText">…</span></div>
+    <div class="row kv"><span>Notifications</span><span id="notifText">…</span></div>
+    <div class="row kv"><span>Sound</span><span id="soundText">…</span></div>
+
+    <button id="openSettings">Open Settings</button>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Twitch Streak Alerts — Settings</title>
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; padding: 16px; max-width: 680px; }
+      .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; }
+      .row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; gap: 16px; }
+      .muted { color: #666; font-size: 13px; }
+      button { padding: 8px 12px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+      button:hover { background: #f6f6f6; }
+      hr { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+      .left { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <h1>Twitch Watch Streak Alerts</h1>
+    <p class="muted">Configure notifications and sound when your watch streak increases.</p>
+
+    <div class="card">
+      <div class="row">
+        <div class="left">
+          <div><b>Enable Extension</b></div>
+          <div class="muted">Master on/off switch.</div>
+        </div>
+        <input id="enabled" type="checkbox" />
+      </div>
+
+      <div class="row">
+        <div class="left">
+          <div><b>Desktop Notifications</b></div>
+          <div class="muted">Show a notification when streak increases.</div>
+        </div>
+        <input id="enableNotifications" type="checkbox" />
+      </div>
+
+      <div class="row">
+        <div class="left">
+          <div><b>Sound Alert</b></div>
+          <div class="muted">Play a short beep when streak increases.</div>
+        </div>
+        <input id="enableSound" type="checkbox" />
+      </div>
+
+      <div class="row">
+        <div class="left">
+          <div><b>Debug Toast</b></div>
+          <div class="muted">Shows a small toast on Twitch pages when a streak value is detected (for testing).</div>
+        </div>
+        <input id="debug" type="checkbox" />
+      </div>
+
+      <hr />
+
+      <div class="row">
+        <div class="left">
+          <div><b>Reset Stored Data</b></div>
+          <div class="muted">Clears saved streak values/history for all channels.</div>
+        </div>
+        <button id="reset">Reset</button>
+      </div>
+
+      <div id="status" class="muted"></div>
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>
