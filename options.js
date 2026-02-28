@@ -4,14 +4,25 @@ const els = {
   enableSound: document.getElementById("enableSound"),
   alertOnFirstDetection: document.getElementById("alertOnFirstDetection"),
   debug: document.getElementById("debug"),
+  hudVisibleSeconds: document.getElementById("hudVisibleSeconds"),
   reset: document.getElementById("reset"),
   status: document.getElementById("status"),
   channelsWrap: document.getElementById("channelsWrap")
 };
 
+const HUD_VISIBLE_SECONDS_DEFAULT = 60;
+const HUD_VISIBLE_SECONDS_MIN = 5;
+const HUD_VISIBLE_SECONDS_MAX = 600;
+
 function setStatus(msg) {
   els.status.textContent = msg || "";
   if (msg) setTimeout(() => (els.status.textContent = ""), 1600);
+}
+
+function normalizeHudVisibleSeconds(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return HUD_VISIBLE_SECONDS_DEFAULT;
+  return Math.min(HUD_VISIBLE_SECONDS_MAX, Math.max(HUD_VISIBLE_SECONDS_MIN, Math.round(n)));
 }
 
 function fmtTime(ts) {
@@ -87,17 +98,24 @@ async function load() {
   els.enableSound.checked = settings.enableSound === true; // default OFF
   els.alertOnFirstDetection.checked = settings.alertOnFirstDetection === true; // default OFF
   els.debug.checked = settings.debug === true; // default OFF
+  els.hudVisibleSeconds.value = String(
+    normalizeHudVisibleSeconds(settings.hudVisibleSeconds ?? HUD_VISIBLE_SECONDS_DEFAULT)
+  );
 
   renderChannelsTable(channels);
 }
 
 async function save() {
+  const hudVisibleSeconds = normalizeHudVisibleSeconds(els.hudVisibleSeconds.value);
+  els.hudVisibleSeconds.value = String(hudVisibleSeconds);
+
   const settings = {
     enabled: els.enabled.checked,
     enableNotifications: els.enableNotifications.checked,
     enableSound: els.enableSound.checked,
     alertOnFirstDetection: els.alertOnFirstDetection.checked,
-    debug: els.debug.checked
+    debug: els.debug.checked,
+    hudVisibleSeconds
   };
   await chrome.storage.local.set({ settings });
   setStatus("Saved.");
@@ -108,6 +126,8 @@ els.enableNotifications.addEventListener("change", save);
 els.enableSound.addEventListener("change", save);
 els.alertOnFirstDetection.addEventListener("change", save);
 els.debug.addEventListener("change", save);
+els.hudVisibleSeconds.addEventListener("change", save);
+els.hudVisibleSeconds.addEventListener("blur", save);
 
 els.reset.addEventListener("click", async () => {
   await chrome.storage.local.set({ channels: {} });

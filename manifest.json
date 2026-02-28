@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Twitch Watch Streak Alerts",
-  "version": "1.1.4",
+  "version": "1.2.1",
   "description": "Alerts you when Twitch watch streak increases on a channel.",
   "permissions": ["storage", "notifications"],
   "host_permissions": ["*://*.twitch.tv/*"],

@@ -125,6 +125,20 @@
         background: white;
       }
 
+      .num-input {
+        width: 96px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        font-weight: 700;
+      }
+      .num-input:focus {
+        outline: 1px solid rgba(169,112,255,0.7);
+        border-color: rgba(169,112,255,0.65);
+      }
+
       .btn {
         padding: 10px 12px;
         border-radius: 12px;
@@ -226,10 +240,18 @@
 
           <div class="setting">
             <div class="left">
-              <p class="name">Debug Toast</p>
-              <p class="desc">Shows a small toast on Twitch pages with detected streak value (useful for testing).</p>
+              <p class="name">Debug HUD Updates</p>
+              <p class="desc">When enabled, HUD updates whenever a streak value is detected.</p>
             </div>
             <input id="debug" type="checkbox" />
+          </div>
+
+          <div class="setting">
+            <div class="left">
+              <p class="name">HUD Visible Time (seconds)</p>
+              <p class="desc">How long the HUD stays visible after an update. Default is 60 seconds.</p>
+            </div>
+            <input id="hudVisibleSeconds" class="num-input" type="number" min="5" max="600" step="1" />
           </div>
 
           <div class="status" id="status"></div>

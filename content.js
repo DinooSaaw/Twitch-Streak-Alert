@@ -171,6 +171,12 @@ function canAlert(now, value) {
   return (now - lastAlertAt) > DUPLICATE_COOLDOWN_MS || lastAlertValue !== value;
 }
 
+async function pushHistoryEvent(channel, state, event) {
+  const history = Array.isArray(state.history) ? state.history : [];
+  history.push(event);
+  await setStoredChannelState(channel, { history });
+}
+
 async function fireAlert({ channel, oldValue, newValue, settings, now, state, kind }) {
   lastAlertAt = now;
   lastAlertValue = newValue;
@@ -187,9 +193,7 @@ async function fireAlert({ channel, oldValue, newValue, settings, now, state, ki
     });
   }
 
-  const history = Array.isArray(state.history) ? state.history : [];
-  history.push({ at: now, from: oldValue, to: newValue, kind });
-  await setStoredChannelState(channel, { history });
+  await pushHistoryEvent(channel, state, { at: now, from: oldValue, to: newValue, kind });
 }
 
 function clampHudPosition(x, y) {
@@ -554,6 +558,10 @@ async function checkStreak() {
       channel
     });
     return;
+  }
+
+  if (value < prev) {
+    await pushHistoryEvent(channel, state, { at: now, from: prev, to: value, kind: "decrease" });
   }
 
   if (settings.debug) {

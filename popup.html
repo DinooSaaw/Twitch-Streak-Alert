@@ -14,6 +14,7 @@
         --accent: #a970ff; /* twitch-ish purple */
         --good: #3ddc97;
         --warn: #ffd166;
+        --bad: #ff6b6b;
       }
 
       * { box-sizing: border-box; }
@@ -98,10 +99,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .label.stale { color: var(--accent); }
       .meta {
         font-size: 12px;
         color: var(--muted);
       }
+      .meta.up { color: var(--good); }
+      .meta.down { color: var(--bad); }
       .value {
         font-size: 13px;
         font-weight: 700;
@@ -135,6 +139,14 @@
       }
       .btn:hover { background: rgba(169,112,255,0.22); }
       .btn:active { transform: translateY(1px); }
+      .btn.small {
+        margin-top: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        border-color: var(--line);
+        background: rgba(255,255,255,0.07);
+      }
+      .btn.small:hover { background: rgba(255,255,255,0.11); }
 
       .muted-note {
         margin-top: 10px;
@@ -165,7 +177,7 @@
           <h1>Watch Streak Alerts</h1>
           <div class="sub">Track streaks + get alerts when they increase</div>
         </div>
-        <div id="statusPill" class="pill">…</div>
+        <div id="statusPill" class="pill">...</div>
       </div>
 
       <div class="card">
@@ -176,22 +188,21 @@
             <div class="label" id="currentChannel">Not on a channel</div>
             <div class="meta" id="currentMeta">Open a Twitch channel page to show it here.</div>
           </div>
-          <div class="value" id="currentStreak">—</div>
+          <div class="value" id="currentStreak">--</div>
         </div>
 
         <div class="divider"></div>
 
         <p class="section-title">Tracked Channels</p>
         <div class="list" id="trackedList"></div>
+        <button class="btn small" id="toggleTracked" style="display:none;">Show More</button>
         <div class="empty" id="emptyState" style="display:none;">
           No tracked channels yet. Open a channel and open the streak widget once.
         </div>
 
         <button class="btn" id="openSettings">Open Settings</button>
 
-        <div class="muted-note">
-          Tip: Turn on <b>Debug Toast</b> in Settings if the streak widget isn’t being detected.
-        </div>
+        <div class="muted-note"><span id="tipText"></span></div>
       </div>
     </div>
 
