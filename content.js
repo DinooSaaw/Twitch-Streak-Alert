@@ -14,7 +14,6 @@ function getChannelFromPath() {
 
   const candidate = path[0].toLowerCase();
 
-  // Twitch non-channel routes
   const blocked = new Set([
     "directory",
     "videos",
@@ -53,30 +52,24 @@ function parseStreakFromText(text) {
 }
 
 function findStreakValueInDOM() {
-  // More reliable than text-node TreeWalker:
-  // checks innerText and aria-label across elements
   const elements = document.querySelectorAll("body *");
   for (const el of elements) {
-    // Check visible text
     const t = el.innerText;
     if (t && t.includes(STREAK_LABEL)) {
       const v = parseStreakFromText(t);
       if (v !== null) return v;
     }
 
-    // Check aria-label (common for tooltips)
     const aria = el.getAttribute && el.getAttribute("aria-label");
     if (aria && aria.includes(STREAK_LABEL)) {
       const v = parseStreakFromText(aria);
       if (v !== null) return v;
     }
   }
-
   return null;
 }
 
 function playBeep() {
-  // Simple WebAudio beep (no audio files needed)
   try {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return;
@@ -105,7 +98,6 @@ function playBeep() {
 }
 
 function debugToast(msg) {
-  // Lightweight, only shown if settings.debug === true
   let el = document.getElementById("streak-alert-debug");
   if (!el) {
     el = document.createElement("div");
@@ -135,7 +127,8 @@ function getSettings() {
         enabled: s.enabled !== false, // default ON
         enableNotifications: s.enableNotifications !== false, // default ON
         enableSound: s.enableSound === true, // default OFF
-        debug: s.debug === true // default OFF
+        debug: s.debug === true, // default OFF
+        alertOnFirstDetection: s.alertOnFirstDetection === true // default OFF
       });
     });
   });
@@ -158,6 +151,34 @@ function setStoredChannelState(channel, patch) {
       chrome.storage.local.set({ channels }, () => resolve());
     });
   });
+}
+
+function canAlert(now, value) {
+  // Avoid duplicate spam if Twitch rerenders
+  return (
+    (now - lastAlertAt) > DUPLICATE_COOLDOWN_MS || lastAlertValue !== value
+  );
+}
+
+async function fireAlert({ channel, oldValue, newValue, settings, now, state }) {
+  lastAlertAt = now;
+  lastAlertValue = newValue;
+
+  if (settings.enableSound) playBeep();
+
+  if (settings.enableNotifications) {
+    chrome.runtime.sendMessage({
+      type: "STREAK_INCREASED",
+      channel,
+      oldValue,
+      newValue
+    });
+  }
+
+  // history
+  const history = Array.isArray(state.history) ? state.history : [];
+  history.push({ at: now, from: oldValue, to: newValue });
+  await setStoredChannelState(channel, { history });
 }
 
 async function checkStreak() {
@@ -192,33 +213,34 @@ async function checkStreak() {
     lastValue: value
   });
 
-  // First time we see a value on this channel, don't alert
-  if (prev === null) return;
+  // FIRST TIME seeing a value for this channel
+  if (prev === null) {
+    if (settings.alertOnFirstDetection && canAlert(now, value)) {
+      // Use oldValue = value to indicate "detected"
+      await fireAlert({
+        channel,
+        oldValue: value,
+        newValue: value,
+        settings,
+        now,
+        state
+      });
+    }
+    return;
+  }
 
   // Only alert on increase
   if (value > prev) {
-    const cooldownOk =
-      (now - lastAlertAt) > DUPLICATE_COOLDOWN_MS || lastAlertValue !== value;
-    if (!cooldownOk) return;
+    if (!canAlert(now, value)) return;
 
-    lastAlertAt = now;
-    lastAlertValue = value;
-
-    if (settings.enableSound) playBeep();
-
-    if (settings.enableNotifications) {
-      chrome.runtime.sendMessage({
-        type: "STREAK_INCREASED",
-        channel,
-        oldValue: prev,
-        newValue: value
-      });
-    }
-
-    // Keep history (optional, but useful)
-    const history = Array.isArray(state.history) ? state.history : [];
-    history.push({ at: now, from: prev, to: value });
-    await setStoredChannelState(channel, { history });
+    await fireAlert({
+      channel,
+      oldValue: prev,
+      newValue: value,
+      settings,
+      now,
+      state
+    });
   }
 }
 
