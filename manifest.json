@@ -1,16 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Twitch Watch Streak Alerts",
-  "version": "1.1.2",
+  "version": "1.1.4",
   "description": "Alerts you when Twitch watch streak increases on a channel.",
   "permissions": ["storage", "notifications"],
-  "host_permissions": ["https://www.twitch.tv/*"],
-  "background": {
-    "service_worker": "service_worker.js"
-  },
+  "host_permissions": ["*://*.twitch.tv/*"],
+  "background": { "service_worker": "service_worker.js" },
   "content_scripts": [
     {
-      "matches": ["https://www.twitch.tv/*"],
+      "matches": ["*://*.twitch.tv/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "all_frames": true

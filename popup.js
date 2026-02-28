@@ -1,5 +1,5 @@
 function fmtTime(ts) {
-  if (!ts) return "—";
+  if (!ts) return "--";
   const d = new Date(ts);
   return d.toLocaleString();
 }
@@ -12,10 +12,16 @@ function channelFromUrl(url) {
     const parts = u.pathname.split("/").filter(Boolean);
     if (!parts.length) return null;
 
+    // Moderator URL parsing: /moderator/{channel} -> {channel}
+    // so popup and content script use the same channel storage key.
+    if (parts[0].toLowerCase() === "moderator") {
+      return parts[1] ? parts[1].toLowerCase() : null;
+    }
+
     const candidate = parts[0].toLowerCase();
     const blocked = new Set([
-      "directory","videos","settings","downloads","turbo","wallet","subscriptions",
-      "inventory","friends","messages","search","jobs","p","user","moderator","creatorcamp","prime"
+      "directory", "videos", "settings", "downloads", "turbo", "wallet", "subscriptions",
+      "inventory", "friends", "messages", "search", "jobs", "p", "user", "creatorcamp", "prime"
     ]);
     if (blocked.has(candidate)) return null;
     return candidate;
@@ -26,7 +32,6 @@ function channelFromUrl(url) {
 
 function bestLastIncrease(state) {
   const history = Array.isArray(state.history) ? state.history : [];
-  // find last "increase" event
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i]?.kind === "increase") return history[i];
   }
@@ -47,7 +52,6 @@ async function loadPopup() {
   statusPill.textContent = enabled ? "Enabled" : "Disabled";
   statusPill.className = `pill ${enabled ? "on" : "off"}`;
 
-  // Current tab info
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const currentChannel = tab?.url ? channelFromUrl(tab.url) : null;
 
@@ -58,19 +62,18 @@ async function loadPopup() {
     const inc = bestLastIncrease(state);
     currentMetaEl.textContent =
       inc
-        ? `Last increase: ${inc.from} → ${inc.to} at ${fmtTime(inc.at)}`
+        ? `Last increase: ${inc.from} -> ${inc.to} at ${fmtTime(inc.at)}`
         : `Last seen: ${fmtTime(state.lastSeenAt)}`;
   } else if (currentChannel) {
     currentChannelEl.textContent = currentChannel;
-    currentStreakEl.textContent = "—";
+    currentStreakEl.textContent = "--";
     currentMetaEl.textContent = "Open the watch streak widget once to detect it.";
   } else {
     currentChannelEl.textContent = "Not on a channel";
-    currentStreakEl.textContent = "—";
+    currentStreakEl.textContent = "--";
     currentMetaEl.textContent = "Open a Twitch channel page to show it here.";
   }
 
-  // Build tracked list sorted by lastSeenAt desc
   const entries = Object.entries(channels)
     .map(([name, state]) => ({ name, state }))
     .sort((a, b) => (b.state?.lastSeenAt || 0) - (a.state?.lastSeenAt || 0));
@@ -80,7 +83,7 @@ async function loadPopup() {
     emptyStateEl.style.display = "block";
   } else {
     emptyStateEl.style.display = "none";
-    const max = Math.min(entries.length, 8); // keep popup short
+    const max = Math.min(entries.length, 8);
     for (let i = 0; i < max; i++) {
       const { name, state } = entries[i];
       const inc = bestLastIncrease(state);
@@ -98,15 +101,15 @@ async function loadPopup() {
       const meta = document.createElement("div");
       meta.className = "meta";
       meta.textContent = inc
-        ? `↑ ${inc.from} → ${inc.to} • ${fmtTime(inc.at)}`
-        : `Last seen • ${fmtTime(state.lastSeenAt)}`;
+        ? `^ ${inc.from} -> ${inc.to} | ${fmtTime(inc.at)}`
+        : `Last seen | ${fmtTime(state.lastSeenAt)}`;
 
       left.appendChild(label);
       left.appendChild(meta);
 
       const value = document.createElement("div");
       value.className = "value";
-      value.textContent = state.lastValue != null ? String(state.lastValue) : "—";
+      value.textContent = state.lastValue != null ? String(state.lastValue) : "--";
 
       item.appendChild(left);
       item.appendChild(value);
