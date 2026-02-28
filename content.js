@@ -52,20 +52,27 @@ function parseStreakFromText(text) {
 }
 
 function findStreakValueInDOM() {
-  const elements = document.querySelectorAll("body *");
-  for (const el of elements) {
-    const t = el.innerText;
-    if (t && t.includes(STREAK_LABEL)) {
-      const v = parseStreakFromText(t);
+  // FAST PATH: your HTML shows it's a <p> with that exact text.
+  // We'll look for any <p> that includes the label, and parse it.
+  const ps = document.querySelectorAll("p");
+  for (const p of ps) {
+    const txt = p.textContent || "";
+    if (txt.includes(STREAK_LABEL)) {
+      const v = parseStreakFromText(txt);
       if (v !== null) return v;
     }
+  }
 
-    const aria = el.getAttribute && el.getAttribute("aria-label");
+  // BACKUP PATH: sometimes Twitch may put it in aria-labels or other nodes
+  const any = document.querySelectorAll("[aria-label]");
+  for (const el of any) {
+    const aria = el.getAttribute("aria-label");
     if (aria && aria.includes(STREAK_LABEL)) {
       const v = parseStreakFromText(aria);
       if (v !== null) return v;
     }
   }
+
   return null;
 }
 
@@ -154,13 +161,10 @@ function setStoredChannelState(channel, patch) {
 }
 
 function canAlert(now, value) {
-  // Avoid duplicate spam if Twitch rerenders
-  return (
-    (now - lastAlertAt) > DUPLICATE_COOLDOWN_MS || lastAlertValue !== value
-  );
+  return (now - lastAlertAt) > DUPLICATE_COOLDOWN_MS || lastAlertValue !== value;
 }
 
-async function fireAlert({ channel, oldValue, newValue, settings, now, state }) {
+async function fireAlert({ channel, oldValue, newValue, settings, now, state, kind }) {
   lastAlertAt = now;
   lastAlertValue = newValue;
 
@@ -171,13 +175,13 @@ async function fireAlert({ channel, oldValue, newValue, settings, now, state }) 
       type: "STREAK_INCREASED",
       channel,
       oldValue,
-      newValue
+      newValue,
+      kind // "first" | "increase"
     });
   }
 
-  // history
   const history = Array.isArray(state.history) ? state.history : [];
-  history.push({ at: now, from: oldValue, to: newValue });
+  history.push({ at: now, from: oldValue, to: newValue, kind });
   await setStoredChannelState(channel, { history });
 }
 
@@ -197,7 +201,7 @@ async function checkStreak() {
   if (settings.debug) {
     debugToast(
       value === null
-        ? `No streak detected (open the streak widget)`
+        ? `No streak detected (open watch streak widget)`
         : `Detected streak: ${value} (${channel})`
     );
   }
@@ -207,29 +211,29 @@ async function checkStreak() {
   const state = await getStoredChannelState(channel);
   const prev = typeof state.lastValue === "number" ? state.lastValue : null;
 
-  // Always store latest seen value + time
+  // Always store latest
   await setStoredChannelState(channel, {
     lastSeenAt: now,
     lastValue: value
   });
 
-  // FIRST TIME seeing a value for this channel
+  // First time detection for this channel
   if (prev === null) {
     if (settings.alertOnFirstDetection && canAlert(now, value)) {
-      // Use oldValue = value to indicate "detected"
       await fireAlert({
         channel,
         oldValue: value,
         newValue: value,
         settings,
         now,
-        state
+        state,
+        kind: "first"
       });
     }
     return;
   }
 
-  // Only alert on increase
+  // Increase detection
   if (value > prev) {
     if (!canAlert(now, value)) return;
 
@@ -239,7 +243,8 @@ async function checkStreak() {
       newValue: value,
       settings,
       now,
-      state
+      state,
+      kind: "increase"
     });
   }
 }
@@ -255,5 +260,5 @@ observer.observe(document.documentElement, {
 // Light polling fallback
 setInterval(checkStreak, 3000);
 
-// Initial check after load
+// Initial check
 setTimeout(checkStreak, 1500);
