@@ -3,6 +3,7 @@ const els = {
   enableNotifications: document.getElementById("enableNotifications"),
   enableSound: document.getElementById("enableSound"),
   alertOnFirstDetection: document.getElementById("alertOnFirstDetection"),
+  autoOpenCloseMenu: document.getElementById("autoOpenCloseMenu"),
   debug: document.getElementById("debug"),
   hudVisibleSeconds: document.getElementById("hudVisibleSeconds"),
   reset: document.getElementById("reset"),
@@ -97,6 +98,7 @@ async function load() {
   els.enableNotifications.checked = settings.enableNotifications !== false; // default ON
   els.enableSound.checked = settings.enableSound === true; // default OFF
   els.alertOnFirstDetection.checked = settings.alertOnFirstDetection === true; // default OFF
+  els.autoOpenCloseMenu.checked = settings.autoOpenCloseMenu === true; // default OFF
   els.debug.checked = settings.debug === true; // default OFF
   els.hudVisibleSeconds.value = String(
     normalizeHudVisibleSeconds(settings.hudVisibleSeconds ?? HUD_VISIBLE_SECONDS_DEFAULT)
@@ -114,6 +116,7 @@ async function save() {
     enableNotifications: els.enableNotifications.checked,
     enableSound: els.enableSound.checked,
     alertOnFirstDetection: els.alertOnFirstDetection.checked,
+    autoOpenCloseMenu: els.autoOpenCloseMenu.checked,
     debug: els.debug.checked,
     hudVisibleSeconds
   };
@@ -125,6 +128,7 @@ els.enabled.addEventListener("change", save);
 els.enableNotifications.addEventListener("change", save);
 els.enableSound.addEventListener("change", save);
 els.alertOnFirstDetection.addEventListener("change", save);
+els.autoOpenCloseMenu.addEventListener("change", save);
 els.debug.addEventListener("change", save);
 els.hudVisibleSeconds.addEventListener("change", save);
 els.hudVisibleSeconds.addEventListener("blur", save);

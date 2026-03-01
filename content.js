@@ -6,6 +6,7 @@ const DUPLICATE_COOLDOWN_MS = 30_000;
 const HUD_ID = "streak-alert-hud";
 const HUD_MARGIN = 16;
 const HUD_DEFAULT_VISIBLE_MS = 60_000;
+const MENU_TOGGLE_COOLDOWN_MS = 1500;
 
 let lastCheckAt = 0;
 let lastAttachAt = 0;
@@ -25,6 +26,10 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 let hudHideTimer = null;
 let currentHudVisibleMs = HUD_DEFAULT_VISIBLE_MS;
+let autoMenuOpenedByExtension = false;
+let autoMenuChannel = null;
+let lastMenuToggleAt = 0;
+const DEBUG_HIGHLIGHT_ATTR = "data-streak-alert-debug-highlight";
 
 function getChannelFromPath() {
   const path = location.pathname.split("/").filter(Boolean);
@@ -143,6 +148,7 @@ function getSettings() {
         enableSound: s.enableSound === true,
         debug: s.debug === true,
         alertOnFirstDetection: s.alertOnFirstDetection === true,
+        autoOpenCloseMenu: s.autoOpenCloseMenu === true,
         hudVisibleMs
       });
     });
@@ -205,6 +211,291 @@ function clampHudPosition(x, y) {
   };
 }
 
+function isWatchStreakToggleCandidate(el) {
+  const text = normalizeSpaces(
+    `${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""} ${el.textContent || ""}`
+  ).toLowerCase();
+  return text.includes("watch streak");
+}
+
+function isElementVisible(el) {
+  if (!el) return false;
+  const rect = el.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function pickBottomRightElement(elements) {
+  const visible = elements.filter((el) => isElementVisible(el));
+  if (!visible.length) return null;
+  return visible.sort((a, b) => {
+    const ra = a.getBoundingClientRect();
+    const rb = b.getBoundingClientRect();
+    const sa = (ra.left + ra.width) + (ra.top + ra.height) * 2;
+    const sb = (rb.left + rb.width) + (rb.top + rb.height) * 2;
+    return sb - sa;
+  })[0];
+}
+
+function isWatchStreakMenuVisible() {
+  const nodes = document.querySelectorAll("p, div, span");
+  for (const node of nodes) {
+    const text = node.textContent || "";
+    if (text.includes(STREAK_LABEL) && isElementVisible(node)) return true;
+  }
+  return false;
+}
+
+function findWatchStreakOpenButtonFromBalances() {
+  const markers = document.querySelectorAll(
+    '[data-test-selector="bits-balance-string"], [data-test-selector="copo-balance-string"]'
+  );
+  const buttons = [];
+  for (const marker of markers) {
+    const btn = marker.closest("button, [role='button']");
+    if (btn) buttons.push(btn);
+  }
+  return pickBottomRightElement(buttons);
+}
+
+function findWatchStreakCloseButton() {
+  const closeButtons = Array.from(document.querySelectorAll(
+    'button[aria-label="Close"], [role="button"][aria-label="Close"]'
+  ));
+  return pickBottomRightElement(closeButtons);
+}
+
+function findToggleFromWatchStreakIcon() {
+  const icon = document.querySelector('svg[aria-label="Watch Streak"]');
+  if (!icon) return null;
+  const button = icon.closest("button, [role='button']");
+  return button && isElementVisible(button) ? button : null;
+}
+
+function findToggleNearSettingsRow() {
+  const settingsButtons = [];
+
+  const byAria = document.querySelectorAll(
+    'button[aria-label*="Settings"], [role="button"][aria-label*="Settings"]'
+  );
+  for (const el of byAria) {
+    if (isElementVisible(el)) settingsButtons.push(el);
+  }
+
+  const byIcon = document.querySelectorAll('svg[aria-label="Settings"]');
+  for (const icon of byIcon) {
+    const btn = icon.closest("button, [role='button']");
+    if (btn && isElementVisible(btn)) settingsButtons.push(btn);
+  }
+
+  if (!settingsButtons.length) return null;
+
+  // Prefer the settings button located in the chat area (bottom-right-ish).
+  const pickSettings = [...new Set(settingsButtons)].sort((a, b) => {
+    const ra = a.getBoundingClientRect();
+    const rb = b.getBoundingClientRect();
+    const sa = (ra.left + ra.width) + (ra.top + ra.height) * 2;
+    const sb = (rb.left + rb.width) + (rb.top + rb.height) * 2;
+    return sb - sa;
+  })[0];
+  if (!pickSettings?.parentElement) return null;
+
+  const siblings = Array.from(pickSettings.parentElement.children)
+    .filter((node) => node instanceof HTMLElement)
+    .filter((node) => node.matches("button, [role='button']"))
+    .filter((node) => isElementVisible(node));
+  if (!siblings.length) return null;
+
+  const settingsIdx = siblings.indexOf(pickSettings);
+  if (settingsIdx <= 0) return null;
+
+  // Use the immediate button to the left of chat settings gear.
+  return siblings[settingsIdx - 1] || null;
+}
+
+function findWatchStreakToggle() {
+  const byBalances = findWatchStreakOpenButtonFromBalances();
+  if (byBalances) return byBalances;
+
+  const byIcon = findToggleFromWatchStreakIcon();
+  if (byIcon) return byIcon;
+
+  const direct = document.querySelector(
+    'button[aria-label*="Watch Streak"], [role="button"][aria-label*="Watch Streak"]'
+  );
+  if (direct) return direct;
+
+  const candidates = document.querySelectorAll("button, [role='button']");
+  for (const el of candidates) {
+    if (isWatchStreakToggleCandidate(el)) return el;
+  }
+
+  const byRowFallback = findToggleNearSettingsRow();
+  if (byRowFallback) return byRowFallback;
+  return null;
+}
+
+function collectWatchStreakToggleCandidates() {
+  const out = [];
+  const seen = new Set();
+  const push = (el) => {
+    if (!el || seen.has(el) || !isElementVisible(el)) return;
+    seen.add(el);
+    out.push(el);
+  };
+
+  push(findWatchStreakOpenButtonFromBalances());
+  push(findToggleFromWatchStreakIcon());
+
+  const direct = document.querySelector(
+    'button[aria-label*="Watch Streak"], [role="button"][aria-label*="Watch Streak"]'
+  );
+  push(direct);
+
+  const byRow = findToggleNearSettingsRow();
+  push(byRow);
+
+  const candidates = document.querySelectorAll("button, [role='button']");
+  for (const el of candidates) {
+    if (isWatchStreakToggleCandidate(el)) push(el);
+  }
+
+  return out;
+}
+
+function findWatchStreakToggleCandidates() {
+  const matches = [];
+  const seen = new Set();
+  const byBalances = findWatchStreakOpenButtonFromBalances();
+  if (byBalances) {
+    matches.push(byBalances);
+    seen.add(byBalances);
+  }
+
+  const direct = document.querySelector(
+    'button[aria-label*="Watch Streak"], [role="button"][aria-label*="Watch Streak"]'
+  );
+  if (direct) {
+    matches.push(direct);
+    seen.add(direct);
+  }
+
+  const candidates = document.querySelectorAll("button, [role='button']");
+  for (const el of candidates) {
+    if (!seen.has(el) && isWatchStreakToggleCandidate(el)) {
+      matches.push(el);
+      seen.add(el);
+    }
+  }
+  return matches;
+}
+
+function clearDebugButtonHighlights() {
+  const highlighted = document.querySelectorAll(`[${DEBUG_HIGHLIGHT_ATTR}="1"]`);
+  for (const el of highlighted) {
+    el.style.outline = "";
+    el.style.outlineOffset = "";
+    el.style.boxShadow = "";
+    el.removeAttribute(DEBUG_HIGHLIGHT_ATTR);
+  }
+}
+
+function syncDebugButtonHighlights(enabled) {
+  if (!enabled) {
+    clearDebugButtonHighlights();
+    return;
+  }
+
+  const buttons = findWatchStreakToggleCandidates();
+  if (!buttons.length) {
+    clearDebugButtonHighlights();
+    return;
+  }
+
+  for (const el of buttons) {
+    el.style.outline = "2px solid rgba(255, 186, 73, 0.95)";
+    el.style.outlineOffset = "2px";
+    el.style.boxShadow = "0 0 0 2px rgba(145, 71, 255, 0.45)";
+    el.setAttribute(DEBUG_HIGHLIGHT_ATTR, "1");
+  }
+}
+
+function getExpandedState(el) {
+  const v = el.getAttribute("aria-expanded");
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return null;
+}
+
+function simulateUserClick(el) {
+  if (!el) return false;
+  const rect = el.getBoundingClientRect();
+  const clientX = Math.round(rect.left + rect.width / 2);
+  const clientY = Math.round(rect.top + rect.height / 2);
+  const mouseInit = { bubbles: true, cancelable: true, view: window, clientX, clientY, button: 0 };
+
+  try {
+    if (typeof PointerEvent === "function") {
+      el.dispatchEvent(new PointerEvent("pointerdown", { ...mouseInit, pointerType: "mouse", isPrimary: true }));
+    }
+    el.dispatchEvent(new MouseEvent("mousedown", mouseInit));
+    if (typeof PointerEvent === "function") {
+      el.dispatchEvent(new PointerEvent("pointerup", { ...mouseInit, pointerType: "mouse", isPrimary: true }));
+    }
+    el.dispatchEvent(new MouseEvent("mouseup", mouseInit));
+    el.dispatchEvent(new MouseEvent("click", mouseInit));
+    return true;
+  } catch {
+    try {
+      el.click();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function setWatchStreakMenuOpen(targetOpen) {
+  if (targetOpen && isWatchStreakMenuVisible()) return true;
+  if (!targetOpen && !isWatchStreakMenuVisible()) return true;
+
+  const now = Date.now();
+  if (now - lastMenuToggleAt < MENU_TOGGLE_COOLDOWN_MS) return false;
+
+  if (targetOpen) {
+    const toggles = collectWatchStreakToggleCandidates();
+    if (!toggles.length) {
+      const fallback = findWatchStreakToggle();
+      if (fallback) toggles.push(fallback);
+    }
+    if (!toggles.length) return false;
+
+    for (const toggle of toggles) {
+      const expanded = getExpandedState(toggle);
+      if (expanded === true) return true;
+      if (simulateUserClick(toggle)) {
+        lastMenuToggleAt = now;
+        break;
+      }
+    }
+    return isWatchStreakMenuVisible();
+  }
+
+  const closeButton = findWatchStreakCloseButton();
+  if (closeButton) {
+    if (simulateUserClick(closeButton)) lastMenuToggleAt = now;
+    return !isWatchStreakMenuVisible();
+  }
+
+  // Fallback close: only click an already-expanded toggle.
+  const fallbackToggle = findWatchStreakToggle();
+  if (!fallbackToggle) return false;
+  const expanded = getExpandedState(fallbackToggle);
+  if (expanded === true && simulateUserClick(fallbackToggle)) {
+    lastMenuToggleAt = now;
+  }
+  return !isWatchStreakMenuVisible();
+}
+
 function createHud() {
   const existing = document.querySelectorAll(`#${HUD_ID}`);
   if (existing.length > 1) {
@@ -245,9 +536,22 @@ function createHud() {
   title.style.alignItems = "center";
   title.style.gap = "6px";
 
-  const icon = document.createElement("span");
-  icon.textContent = "\uD83D\uDD25";
-  icon.style.fontSize = "14px";
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("width", "14");
+  icon.setAttribute("height", "14");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  icon.style.display = "inline-block";
+  icon.style.verticalAlign = "middle";
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("fill", "currentColor");
+  path.setAttribute("fill-rule", "evenodd");
+  path.setAttribute(
+    "d",
+    "M5.295 8.05 10 2l3 4 2-3 3.8 5.067a11 11 0 0 1 2.2 6.6A7.333 7.333 0 0 1 13.667 22h-3.405A7.262 7.262 0 0 1 3 14.738c0-2.423.807-4.776 2.295-6.688Zm7.801 1.411 2-3L17.2 9.267a9 9 0 0 1 1.8 5.4 5.334 5.334 0 0 1-4.826 5.31 3 3 0 0 0 .174-3.748L12 13l-2.348 3.229a3 3 0 0 0 .18 3.754A5.263 5.263 0 0 1 5 14.738c0-1.978.66-3.9 1.873-5.46l3.098-3.983 3.125 4.166Z"
+  );
+  path.setAttribute("clip-rule", "evenodd");
+  icon.appendChild(path);
 
   const titleText = document.createElement("span");
   title.appendChild(icon);
@@ -509,6 +813,11 @@ async function checkStreak() {
   const channel = getChannelFromPath();
   if (!channel) return;
 
+  if (autoMenuChannel !== channel) {
+    autoMenuChannel = channel;
+    autoMenuOpenedByExtension = false;
+  }
+
   const settings = await getSettings();
   if (!settings.enabled) return;
   currentHudVisibleMs = settings.hudVisibleMs;
@@ -517,6 +826,11 @@ async function checkStreak() {
     lastAttachAt = now;
     await attachHud(channel);
   }
+
+  if (settings.autoOpenCloseMenu && !autoMenuOpenedByExtension) {
+    if (setWatchStreakMenuOpen(true) || isWatchStreakMenuVisible()) autoMenuOpenedByExtension = true;
+  }
+  syncDebugButtonHighlights(settings.debug);
 
   const value = findStreakValueInDOM();
   if (typeof value !== "number" || Number.isNaN(value)) return;
@@ -557,6 +871,10 @@ async function checkStreak() {
       mode: "increase",
       channel
     });
+    if (settings.autoOpenCloseMenu && autoMenuOpenedByExtension) {
+      setWatchStreakMenuOpen(false);
+      autoMenuOpenedByExtension = false;
+    }
     return;
   }
 
