@@ -837,8 +837,9 @@ async function checkStreak() {
 
   const state = await getStoredChannelState(channel);
   const prev = typeof state.lastValue === "number" ? state.lastValue : null;
-
-  await setStoredChannelState(channel, { lastSeenAt: now, lastValue: value });
+  const patch = { lastValue: value };
+  if (prev !== value) patch.lastUpdatedAt = now;
+  await setStoredChannelState(channel, patch);
 
   if (prev === null) {
     if (settings.alertOnFirstDetection && canAlert(now, value)) {

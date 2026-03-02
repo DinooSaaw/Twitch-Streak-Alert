@@ -59,6 +59,10 @@ function lastChangeEvent(state) {
   return null;
 }
 
+function getLastUpdatedAt(state) {
+  return Number(state?.lastUpdatedAt ?? state?.lastSeenAt ?? 0);
+}
+
 function setTip(index) {
   const tipTextEl = document.getElementById("tipText");
   if (!tipTextEl) return;
@@ -106,7 +110,7 @@ function renderTrackedList(entries, trackedListEl, toggleTrackedEl) {
       meta.classList.add("down");
       meta.textContent = `${change.to} <- ${change.from} | ${fmtTime(change.at)}`;
     } else {
-      meta.textContent = `Last seen | ${fmtTime(state.lastSeenAt)}`;
+      meta.textContent = `Last updated | ${fmtTime(getLastUpdatedAt(state))}`;
     }
 
     left.appendChild(label);
@@ -165,7 +169,7 @@ async function loadPopup() {
       currentMetaEl.textContent =
         inc
           ? `Last increase: ${inc.from} -> ${inc.to} at ${fmtTime(inc.at)}`
-          : `Last seen: ${fmtTime(state.lastSeenAt)}`;
+          : `Last updated: ${fmtTime(getLastUpdatedAt(state))}`;
     }
   } else if (currentChannel) {
     currentChannelEl.textContent = currentChannel;
@@ -181,7 +185,7 @@ async function loadPopup() {
 
   const entries = Object.entries(channels)
     .map(([name, state]) => ({ name, state }))
-    .sort((a, b) => (b.state?.lastSeenAt || 0) - (a.state?.lastSeenAt || 0));
+    .sort((a, b) => getLastUpdatedAt(b.state) - getLastUpdatedAt(a.state));
 
   if (!entries.length) {
     trackedListEl.innerHTML = "";

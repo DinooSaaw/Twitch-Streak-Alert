@@ -15,7 +15,7 @@ const HUD_VISIBLE_SECONDS_DEFAULT = 60;
 const HUD_VISIBLE_SECONDS_MIN = 5;
 const HUD_VISIBLE_SECONDS_MAX = 600;
 let channelsState = {};
-let sortByState = "lastSeen";
+let sortByState = "lastUpdated";
 let sortOrderState = "desc";
 
 function setStatus(msg) {
@@ -42,11 +42,15 @@ function bestLastIncrease(state) {
   return null;
 }
 
+function getLastUpdatedAt(state) {
+  return Number(state?.lastUpdatedAt ?? state?.lastSeenAt ?? 0);
+}
+
 function getSortValue(entry, sortBy) {
   if (sortBy === "name") return entry.name.toLowerCase();
   if (sortBy === "streak") return Number(entry.state?.lastValue ?? Number.NEGATIVE_INFINITY);
   if (sortBy === "lastIncrease") return Number(bestLastIncrease(entry.state)?.at ?? 0);
-  return Number(entry.state?.lastSeenAt ?? 0);
+  return getLastUpdatedAt(entry.state);
 }
 
 function compareEntries(a, b) {
@@ -87,7 +91,7 @@ function renderChannelsTable() {
           <th data-sort-by="name" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("name", "Channel"))}</th>
           <th data-sort-by="streak" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("streak", "Streak"))}</th>
           <th data-sort-by="lastIncrease" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("lastIncrease", "Last increase"))}</th>
-          <th data-sort-by="lastSeen" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("lastSeen", "Last seen"))}</th>
+          <th data-sort-by="lastUpdated" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("lastUpdated", "Last updated"))}</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -98,14 +102,14 @@ function renderChannelsTable() {
     const inc = bestLastIncrease(state);
     const incText = inc ? `${inc.from} → ${inc.to} @ ${fmtTime(inc.at)}` : "—";
     const streak = state.lastValue != null ? state.lastValue : "—";
-    const seen = fmtTime(state.lastSeenAt);
+    const updated = fmtTime(getLastUpdatedAt(state));
 
     html += `
       <tr>
         <td>${escapeHtml(name)}</td>
         <td>${escapeHtml(String(streak))}</td>
         <td>${escapeHtml(incText)}</td>
-        <td>${escapeHtml(seen)}</td>
+        <td>${escapeHtml(updated)}</td>
         <td style="text-align:right;">
           <button class="btn danger" data-remove-channel="${escapeHtml(name)}">Remove</button>
         </td>
