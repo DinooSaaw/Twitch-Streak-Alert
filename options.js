@@ -14,6 +14,9 @@ const els = {
 const HUD_VISIBLE_SECONDS_DEFAULT = 60;
 const HUD_VISIBLE_SECONDS_MIN = 5;
 const HUD_VISIBLE_SECONDS_MAX = 600;
+let channelsState = {};
+let sortByState = "lastSeen";
+let sortOrderState = "desc";
 
 function setStatus(msg) {
   els.status.textContent = msg || "";
@@ -39,10 +42,38 @@ function bestLastIncrease(state) {
   return null;
 }
 
-function renderChannelsTable(channels) {
-  const entries = Object.entries(channels || {})
+function getSortValue(entry, sortBy) {
+  if (sortBy === "name") return entry.name.toLowerCase();
+  if (sortBy === "streak") return Number(entry.state?.lastValue ?? Number.NEGATIVE_INFINITY);
+  if (sortBy === "lastIncrease") return Number(bestLastIncrease(entry.state)?.at ?? 0);
+  return Number(entry.state?.lastSeenAt ?? 0);
+}
+
+function compareEntries(a, b) {
+  const aVal = getSortValue(a, sortByState);
+  const bVal = getSortValue(b, sortByState);
+  const direction = sortOrderState === "asc" ? 1 : -1;
+
+  if (sortByState === "name") {
+    const cmp = String(aVal).localeCompare(String(bVal));
+    if (cmp !== 0) return cmp * direction;
+  } else if (aVal !== bVal) {
+    return (aVal - bVal) * direction;
+  }
+
+  return a.name.localeCompare(b.name);
+}
+
+function sortHeaderLabel(sortBy, text) {
+  const active = sortByState === sortBy;
+  const arrow = active && sortOrderState === "desc" ? " ▼" : "";
+  return `${text}${arrow}`;
+}
+
+function renderChannelsTable() {
+  const entries = Object.entries(channelsState || {})
     .map(([name, state]) => ({ name, state }))
-    .sort((a, b) => (b.state?.lastSeenAt || 0) - (a.state?.lastSeenAt || 0));
+    .sort(compareEntries);
 
   if (!entries.length) {
     els.channelsWrap.innerHTML = `<div class="tiny">No channels tracked yet.</div>`;
@@ -53,10 +84,11 @@ function renderChannelsTable(channels) {
     <table>
       <thead>
         <tr>
-          <th>Channel</th>
-          <th>Streak</th>
-          <th>Last increase</th>
-          <th>Last seen</th>
+          <th data-sort-by="name" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("name", "Channel"))}</th>
+          <th data-sort-by="streak" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("streak", "Streak"))}</th>
+          <th data-sort-by="lastIncrease" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("lastIncrease", "Last increase"))}</th>
+          <th data-sort-by="lastSeen" style="cursor:pointer;">${escapeHtml(sortHeaderLabel("lastSeen", "Last seen"))}</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -73,7 +105,10 @@ function renderChannelsTable(channels) {
         <td>${escapeHtml(name)}</td>
         <td>${escapeHtml(String(streak))}</td>
         <td>${escapeHtml(incText)}</td>
-        <td style="text-align:right;">${escapeHtml(seen)}</td>
+        <td>${escapeHtml(seen)}</td>
+        <td style="text-align:right;">
+          <button class="btn danger" data-remove-channel="${escapeHtml(name)}">Remove</button>
+        </td>
       </tr>
     `;
   }
@@ -104,7 +139,8 @@ async function load() {
     normalizeHudVisibleSeconds(settings.hudVisibleSeconds ?? HUD_VISIBLE_SECONDS_DEFAULT)
   );
 
-  renderChannelsTable(channels);
+  channelsState = channels;
+  renderChannelsTable();
 }
 
 async function save() {
@@ -133,9 +169,36 @@ els.debug.addEventListener("change", save);
 els.hudVisibleSeconds.addEventListener("change", save);
 els.hudVisibleSeconds.addEventListener("blur", save);
 
+els.channelsWrap.addEventListener("click", async (event) => {
+  const sortHeader = event.target.closest("[data-sort-by]");
+  if (sortHeader) {
+    const selectedSortBy = sortHeader.getAttribute("data-sort-by");
+    if (!selectedSortBy) return;
+    if (sortByState === selectedSortBy) {
+      sortOrderState = sortOrderState === "desc" ? "asc" : "desc";
+    } else {
+      sortByState = selectedSortBy;
+      sortOrderState = "desc";
+    }
+    renderChannelsTable();
+    return;
+  }
+
+  const btn = event.target.closest("[data-remove-channel]");
+  if (!btn) return;
+  const channel = btn.getAttribute("data-remove-channel");
+  if (!channel || !channelsState[channel]) return;
+
+  delete channelsState[channel];
+  await chrome.storage.local.set({ channels: channelsState });
+  renderChannelsTable();
+  setStatus(`Removed ${channel}.`);
+});
+
 els.reset.addEventListener("click", async () => {
+  channelsState = {};
   await chrome.storage.local.set({ channels: {} });
-  renderChannelsTable({});
+  renderChannelsTable();
   setStatus("Reset complete.");
 });
 
