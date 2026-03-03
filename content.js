@@ -462,6 +462,7 @@ function setWatchStreakMenuOpen(targetOpen) {
   if (now - lastMenuToggleAt < MENU_TOGGLE_COOLDOWN_MS) return false;
 
   if (targetOpen) {
+    let clickedToggle = false;
     const toggles = collectWatchStreakToggleCandidates();
     if (!toggles.length) {
       const fallback = findWatchStreakToggle();
@@ -473,11 +474,14 @@ function setWatchStreakMenuOpen(targetOpen) {
       const expanded = getExpandedState(toggle);
       if (expanded === true) return true;
       if (simulateUserClick(toggle)) {
+        clickedToggle = true;
         lastMenuToggleAt = now;
         break;
       }
     }
-    return isWatchStreakMenuVisible();
+    // If we dispatched a click, treat it as an open attempt to avoid
+    // repeated toggle loops when Twitch delays or fails visibility text rendering.
+    return clickedToggle || isWatchStreakMenuVisible();
   }
 
   const closeButton = findWatchStreakCloseButton();

@@ -93,7 +93,7 @@
         line-height: 1.35;
       }
 
-      input[type="checkbox"] {
+      .toggle {
         width: 44px;
         height: 24px;
         appearance: none;
@@ -104,8 +104,9 @@
         cursor: pointer;
         outline: none;
         transition: background 0.15s ease;
+        flex-shrink: 0;
       }
-      input[type="checkbox"]::after {
+      .toggle::after {
         content: "";
         position: absolute;
         width: 18px;
@@ -116,13 +117,16 @@
         background: rgba(255,255,255,0.9);
         transition: transform 0.15s ease;
       }
-      input[type="checkbox"]:checked {
+      .toggle:checked {
         background: rgba(169,112,255,0.35);
         border-color: rgba(169,112,255,0.55);
       }
-      input[type="checkbox"]:checked::after {
+      .toggle:checked::after {
         transform: translateX(19px);
         background: white;
+      }
+      .toggle:focus-visible {
+        box-shadow: 0 0 0 2px rgba(169,112,255,0.28);
       }
 
       .num-input {
@@ -211,7 +215,7 @@
               <p class="name">Enable Extension</p>
               <p class="desc">Master on/off switch for everything.</p>
             </div>
-            <input id="enabled" type="checkbox" />
+            <input id="enabled" class="toggle" type="checkbox" />
           </div>
 
           <div class="setting">
@@ -219,7 +223,7 @@
               <p class="name">Desktop Notifications</p>
               <p class="desc">Show a notification when streak increases or is first detected.</p>
             </div>
-            <input id="enableNotifications" type="checkbox" />
+            <input id="enableNotifications" class="toggle" type="checkbox" />
           </div>
 
           <div class="setting">
@@ -227,7 +231,7 @@
               <p class="name">Sound Alert</p>
               <p class="desc">Plays a short beep when the streak increases (and first-detect alert too).</p>
             </div>
-            <input id="enableSound" type="checkbox" />
+            <input id="enableSound" class="toggle" type="checkbox" />
           </div>
 
           <div class="setting">
@@ -235,7 +239,7 @@
               <p class="name">Alert on First Detection</p>
               <p class="desc">Alerts once per channel when the streak value is detected for the first time.</p>
             </div>
-            <input id="alertOnFirstDetection" type="checkbox" />
+            <input id="alertOnFirstDetection" class="toggle" type="checkbox" />
           </div>
 
           <div class="setting">
@@ -243,7 +247,7 @@
               <p class="name">Auto Open/Close Watch Streak Menu</p>
               <p class="desc">Automatically clicks the Watch Streak button to open the menu, then closes it after an increase.</p>
             </div>
-            <input id="autoOpenCloseMenu" type="checkbox" />
+            <input id="autoOpenCloseMenu" class="toggle" type="checkbox" />
           </div>
 
           <div class="setting">
@@ -251,7 +255,7 @@
               <p class="name">Debug HUD Updates</p>
               <p class="desc">When enabled, HUD updates whenever a streak value is detected.</p>
             </div>
-            <input id="debug" type="checkbox" />
+            <input id="debug" class="toggle" type="checkbox" />
           </div>
 
           <div class="setting">
